@@ -144,7 +144,7 @@ function impression(slot) {
     id: slot.bidId,
     bidfloor: bidFloorFromModule || slot.params.bidfloor || 0,
     bidfloorcur: (bidFloorFromModule && 'USD') || slot.params.bidfloorcur || 'USD',
-    tagId: slot.params.tagId || '0'
+    tagid: slot.params.tagId || '0'
   };
 
   if (slot.mediaTypes.native) {
