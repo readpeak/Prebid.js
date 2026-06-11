@@ -155,7 +155,7 @@ describe('ReadPeakAdapter', function() {
             },
             bidfloor: 5,
             bidfloorcur: 'USD',
-            tagId: 'test-tag-1'
+            tagid: 'test-tag-1'
           }
         ],
         site: {
@@ -186,7 +186,7 @@ describe('ReadPeakAdapter', function() {
             id: '2ffb201a808da7',
             bidfloor: 5,
             bidfloorcur: 'USD',
-            tagId: 'test-tag-1',
+            tagid: 'test-tag-1',
             banner: {
               w: 640,
               h: 360,
@@ -263,7 +263,7 @@ describe('ReadPeakAdapter', function() {
         expect(data.id).to.equal(nativeBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(nativeBidRequest.params.bidfloor);
         expect(data.imp[0].bidfloorcur).to.equal('USD');
-        expect(data.imp[0].tagId).to.equal('test-tag-1');
+        expect(data.imp[0].tagid).to.equal('test-tag-1');
         expect(data.site.publisher.id).to.equal(nativeBidRequest.params.publisherId);
         expect(data.site.id).to.equal(nativeBidRequest.params.siteId);
         expect(data.site.page).to.equal(bidderRequest.refererInfo.page);
@@ -425,7 +425,7 @@ describe('ReadPeakAdapter', function() {
         expect(data.id).to.equal(bannerBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(bannerBidRequest.params.bidfloor);
         expect(data.imp[0].bidfloorcur).to.equal('USD');
-        expect(data.imp[0].tagId).to.equal('test-tag-1');
+        expect(data.imp[0].tagid).to.equal('test-tag-1');
         expect(data.site.publisher.id).to.equal(bannerBidRequest.params.publisherId);
         expect(data.site.id).to.equal(bannerBidRequest.params.siteId);
         expect(data.site.page).to.equal(bidderRequest.refererInfo.page);
