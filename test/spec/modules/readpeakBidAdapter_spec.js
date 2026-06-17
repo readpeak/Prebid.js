@@ -202,6 +202,56 @@ describe('ReadPeakAdapter', function() {
         expect(data.regs).to.be.undefined;
       });
 
+      it('should send an app object instead of site when params.app is set', function() {
+        const appBidRequest = {
+          ...nativeBidRequest,
+          params: {
+            ...nativeBidRequest.params,
+            app: {
+              bundle: 'com.readpeak.app',
+              storeUrl: 'https://store.example/app',
+              domain: 'readpeak.app'
+            }
+          }
+        };
+        const request = spec.buildRequests([appBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app).to.deep.equal({
+          publisher: { id: appBidRequest.params.publisherId },
+          id: appBidRequest.params.siteId,
+          bundle: 'com.readpeak.app',
+          storeurl: 'https://store.example/app',
+          domain: 'readpeak.app'
+        });
+      });
+
+      it('should send an app object instead of site when ortb2.app is set without params.app', function() {
+        const request = spec.buildRequests([nativeBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            site: undefined,
+            app: {
+              bundle: 'com.readpeak.app',
+              storeurl: 'https://store.example/app',
+              domain: 'readpeak.app'
+            }
+          }
+        });
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app.publisher.id).to.equal(nativeBidRequest.params.publisherId);
+        expect(data.app.id).to.equal(nativeBidRequest.params.siteId);
+        expect(data.app.bundle).to.equal('com.readpeak.app');
+        expect(data.app.storeurl).to.equal('https://store.example/app');
+        expect(data.app.domain).to.equal('readpeak.app');
+      });
+
       it('should get bid floor from module when params.bidfloor is not set', function() {
         const floorModuleData = {
           currency: 'USD',
