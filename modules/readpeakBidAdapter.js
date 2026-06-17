@@ -107,10 +107,9 @@ export const spec = {
     return converter.fromORTB({ request: request.data, response: response.body }).bids;
   },
 
-  onBidWon: (bid) => {
+  onBidBillable: (bid) => {
     if (bid.burl && isStr(bid.burl)) {
-      bid.burl = replaceAuctionPrice(bid.burl, bid.cpm);
-      triggerPixel(bid.burl);
+      triggerPixel(replaceAuctionPrice(bid.burl, bid.originalCpm || bid.cpm));
     }
   },
 };
