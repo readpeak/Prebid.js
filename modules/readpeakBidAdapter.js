@@ -20,27 +20,19 @@ const converter = ortbConverter({
     const imp = buildImp(bidRequest, context);
     if (!imp) return imp;
 
-    // Prefer publisher-set params.bidfloor, fall back to floor module
-    let bidFloor = 0;
-    let bidFloorCur = 'USD';
-
-    if (bidRequest.params.bidfloor) {
-      bidFloor = bidRequest.params.bidfloor;
-      bidFloorCur = bidRequest.params.bidfloorcur || 'USD';
-    } else if (typeof bidRequest.getFloor === 'function') {
+    // Prefer floor module, fall back to publisher-set params.bidfloor
+    let bidFloorFromModule;
+    if (typeof bidRequest.getFloor === 'function') {
       const floorInfo = bidRequest.getFloor({
         currency: 'USD',
         mediaType: '*',
         size: '*',
       });
-      if (floorInfo && floorInfo.currency === 'USD' && floorInfo.floor) {
-        bidFloor = floorInfo.floor;
-        bidFloorCur = floorInfo.currency;
-      }
+      bidFloorFromModule = floorInfo?.currency === 'USD' ? floorInfo?.floor : undefined;
     }
 
-    imp.bidfloor = bidFloor;
-    imp.bidfloorcur = bidFloorCur;
+    imp.bidfloor = bidFloorFromModule || bidRequest.params.bidfloor || 0;
+    imp.bidfloorcur = (bidFloorFromModule && 'USD') || bidRequest.params.bidfloorcur || 'USD';
     imp.tagid = bidRequest.params.tagId || '0';
 
     // Ensure native imp is populated when nativeOrtbRequest isn't available

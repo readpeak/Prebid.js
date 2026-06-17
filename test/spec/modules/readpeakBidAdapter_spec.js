@@ -221,7 +221,7 @@ describe('ReadPeakAdapter', function() {
         expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
-      it('should prefer params.bidfloor over floor module', function() {
+      it('should prefer floor module over params.bidfloor', function() {
         const floorModuleData = {
           currency: 'USD',
           floor: 3.2,
@@ -233,8 +233,8 @@ describe('ReadPeakAdapter', function() {
 
         const data = request.data;
 
-        expect(data.imp[0].bidfloor).to.equal(nativeBidRequest.params.bidfloor);
-        expect(data.imp[0].bidfloorcur).to.equal('USD');
+        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
+        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
       it('should send gdpr data when gdpr does not apply', function() {
@@ -395,7 +395,7 @@ describe('ReadPeakAdapter', function() {
         expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
-      it('should prefer params.bidfloor over floor module', function() {
+      it('should prefer floor module over params.bidfloor', function() {
         const floorModuleData = {
           currency: 'USD',
           floor: 3.2,
@@ -407,8 +407,8 @@ describe('ReadPeakAdapter', function() {
 
         const data = request.data;
 
-        expect(data.imp[0].bidfloor).to.equal(bannerBidRequest.params.bidfloor);
-        expect(data.imp[0].bidfloorcur).to.equal('USD');
+        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
+        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
       it('should send gdpr data when gdpr does not apply', function() {
