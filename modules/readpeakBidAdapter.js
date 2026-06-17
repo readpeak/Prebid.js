@@ -31,8 +31,8 @@ const converter = ortbConverter({
       bidFloorFromModule = floorInfo?.currency === 'USD' ? floorInfo?.floor : undefined;
     }
 
-    imp.bidfloor = bidFloorFromModule || bidRequest.params.bidfloor || 0;
-    imp.bidfloorcur = (bidFloorFromModule && 'USD') || bidRequest.params.bidfloorcur || 'USD';
+    imp.bidfloor = bidFloorFromModule ?? bidRequest.params.bidfloor ?? 0;
+    imp.bidfloorcur = bidFloorFromModule !== undefined ? 'USD' : (bidRequest.params.bidfloorcur || 'USD');
     imp.tagid = bidRequest.params.tagId || '0';
 
     // Ensure native imp is populated when nativeOrtbRequest isn't available
@@ -53,16 +53,38 @@ const converter = ortbConverter({
 
     deepSetValue(request, 'source.ext.prebid', '$prebid.version$');
 
-    // Site publisher and site id from params
     const firstBid = bidRequests && bidRequests[0];
     if (firstBid && firstBid.params) {
-      if (firstBid.params.publisherId) {
-        deepSetValue(request, 'site.publisher.id', firstBid.params.publisherId.toString());
-      }
-      if (firstBid.params.siteId) {
-        deepSetValue(request, 'site.id', firstBid.params.siteId.toString());
-      } else if (firstBid.params.publisherId) {
-        deepSetValue(request, 'site.id', firstBid.params.publisherId.toString());
+      const appParams = firstBid.params.app;
+      if (request.app || appParams) {
+        delete request.site;
+        if (firstBid.params.publisherId) {
+          deepSetValue(request, 'app.publisher.id', firstBid.params.publisherId.toString());
+        }
+        if (firstBid.params.siteId) {
+          deepSetValue(request, 'app.id', firstBid.params.siteId.toString());
+        } else if (firstBid.params.publisherId) {
+          deepSetValue(request, 'app.id', firstBid.params.publisherId.toString());
+        }
+        if (appParams?.bundle) {
+          deepSetValue(request, 'app.bundle', appParams.bundle);
+        }
+        if (appParams?.storeUrl) {
+          deepSetValue(request, 'app.storeurl', appParams.storeUrl);
+        }
+        if (appParams?.domain) {
+          deepSetValue(request, 'app.domain', appParams.domain);
+        }
+      } else {
+        // Site publisher and site id from params
+        if (firstBid.params.publisherId) {
+          deepSetValue(request, 'site.publisher.id', firstBid.params.publisherId.toString());
+        }
+        if (firstBid.params.siteId) {
+          deepSetValue(request, 'site.id', firstBid.params.siteId.toString());
+        } else if (firstBid.params.publisherId) {
+          deepSetValue(request, 'site.id', firstBid.params.publisherId.toString());
+        }
       }
     }
 
