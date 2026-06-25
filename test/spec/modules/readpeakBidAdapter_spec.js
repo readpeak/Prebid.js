@@ -1,5 +1,6 @@
 import { expect } from 'chai';
 import { spec, ENDPOINT } from 'modules/readpeakBidAdapter.js';
+import * as utils from 'src/utils.js';
 
 describe('ReadPeakAdapter', function() {
   let baseBidRequest;
@@ -250,6 +251,42 @@ describe('ReadPeakAdapter', function() {
         expect(data.app.bundle).to.equal('com.readpeak.app');
         expect(data.app.storeurl).to.equal('https://store.example/app');
         expect(data.app.domain).to.equal('readpeak.app');
+      });
+
+      it('should fall back to publisherId for app.id when siteId is not set', function() {
+        const appBidRequest = {
+          ...nativeBidRequest,
+          params: {
+            ...nativeBidRequest.params,
+            siteId: undefined,
+            app: {
+              bundle: 'com.readpeak.app'
+            }
+          }
+        };
+        const request = spec.buildRequests([appBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app.publisher.id).to.equal(appBidRequest.params.publisherId);
+        expect(data.app.id).to.equal(appBidRequest.params.publisherId);
+      });
+
+      it('should fall back to publisherId for site.id when siteId is not set', function() {
+        const siteBidRequest = {
+          ...nativeBidRequest,
+          params: {
+            ...nativeBidRequest.params,
+            siteId: undefined
+          }
+        };
+        const request = spec.buildRequests([siteBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site.publisher.id).to.equal(siteBidRequest.params.publisherId);
+        expect(data.site.id).to.equal(siteBidRequest.params.publisherId);
       });
 
       it('should get bid floor from module when params.bidfloor is not set', function() {
@@ -602,6 +639,76 @@ describe('ReadPeakAdapter', function() {
         expect(bidResponse.native.ortb.assets.find(a => a.title)).to.deep.include({
           title: { text: 'Title' }
         });
+      });
+    });
+  }
+
+  describe('spec.onBidBillable', function() {
+    let triggerPixelStub;
+
+    beforeEach(function() {
+      triggerPixelStub = sinon.stub(utils, 'triggerPixel');
+    });
+
+    afterEach(function() {
+      triggerPixelStub.restore();
+    });
+
+    it('should trigger the billing pixel with the auction price replaced', function() {
+      const bid = {
+        burl: 'https://readpeak.com/billing?price=${AUCTION_PRICE}',
+        originalCpm: 1.23,
+        cpm: 1.5
+      };
+      spec.onBidBillable(bid);
+      expect(triggerPixelStub.calledOnce).to.equal(true);
+      expect(triggerPixelStub.firstCall.args[0]).to.equal('https://readpeak.com/billing?price=1.23');
+    });
+
+    it('should fall back to cpm when originalCpm is not set', function() {
+      const bid = {
+        burl: 'https://readpeak.com/billing?price=${AUCTION_PRICE}',
+        cpm: 2.5
+      };
+      spec.onBidBillable(bid);
+      expect(triggerPixelStub.calledOnce).to.equal(true);
+      expect(triggerPixelStub.firstCall.args[0]).to.equal('https://readpeak.com/billing?price=2.5');
+    });
+
+    it('should not trigger a pixel when burl is missing', function() {
+      spec.onBidBillable({});
+      expect(triggerPixelStub.called).to.equal(false);
+    });
+
+    it('should not trigger a pixel when burl is not a string', function() {
+      spec.onBidBillable({ burl: 12345 });
+      expect(triggerPixelStub.called).to.equal(false);
+    });
+  });
+
+  if (FEATURES.NATIVE) {
+    describe('Native media type fallback', function() {
+      it('should treat a response without mtype as native for a native-only imp', function() {
+        const request = spec.buildRequests([nativeBidRequest], bidderRequest);
+        const response = {
+          ...nativeServerResponse,
+          seatbid: [{
+            bid: [{
+              ...nativeServerResponse.seatbid[0].bid[0],
+              impid: nativeBidRequest.bidId,
+              // non-native adm and no mtype forces the context.imp.native fallback branch
+              adm: JSON.stringify({ foo: 'bar' }),
+              mtype: undefined
+            }]
+          }]
+        };
+
+        expect(request.data.imp[0].native).to.exist;
+        expect(request.data.imp[0].banner).to.not.exist;
+
+        // the fallback resolves the mediaType to native; the adm has no assets so the bid is skipped
+        const bidResponses = spec.interpretResponse({ body: response }, request);
+        expect(bidResponses).to.be.an('array').that.is.empty;
       });
     });
   }
