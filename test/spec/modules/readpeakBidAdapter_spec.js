@@ -1,15 +1,12 @@
 import { expect } from 'chai';
 import { spec, ENDPOINT } from 'modules/readpeakBidAdapter.js';
-import { config } from 'src/config.js';
 
 describe('ReadPeakAdapter', function() {
   let baseBidRequest;
   let bannerBidRequest;
   let nativeBidRequest;
   let nativeServerResponse;
-  let nativeServerRequest;
   let bannerServerResponse;
-  let bannerServerRequest;
   let bidderRequest;
 
   beforeEach(function() {
@@ -17,6 +14,16 @@ describe('ReadPeakAdapter', function() {
       refererInfo: {
         page: 'https://publisher.com/home',
         domain: 'publisher.com'
+      },
+      ortb2: {
+        site: {
+          page: 'https://publisher.com/home',
+          domain: 'publisher.com'
+        },
+        device: {
+          ua: navigator.userAgent,
+          language: navigator.language,
+        }
       }
     };
 
@@ -140,81 +147,6 @@ describe('ReadPeakAdapter', function() {
         }
       ]
     };
-    nativeServerRequest = {
-      method: 'POST',
-      url: 'http://localhost:60080/header/prebid',
-      data: JSON.stringify({
-        id: '178e34bad3658f',
-        imp: [
-          {
-            id: '2ffb201a808da7',
-            native: {
-              request:
-                '{\"assets\":[{\"id\":1,\"required\":1,\"title\":{\"len\":70}},{\"id\":2,\"required\":1,\"img\":{\"type\":3,\"wmin\":150,\"hmin\":150}},{\"id\":4,\"required\":1,\"data\":{\"type\":2,\"len\":120}}]}',
-              ver: '1.1'
-            },
-            bidfloor: 5,
-            bidfloorcur: 'USD',
-            tagId: 'test-tag-1'
-          }
-        ],
-        site: {
-          publisher: {
-            id: '11bc5dd5-7421-4dd8-c926-40fa653bec76'
-          },
-          id: '11bc5dd5-7421-4dd8-c926-40fa653bec77',
-          ref: '',
-          page: 'http://localhost',
-          domain: 'localhost'
-        },
-        app: null,
-        device: {
-          ua:
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/61.0.3163.100 Safari/537.36',
-          language: 'en-US'
-        },
-        isPrebid: true
-      })
-    };
-    bannerServerRequest = {
-      method: 'POST',
-      url: 'http://localhost:60080/header/prebid',
-      data: JSON.stringify({
-        id: '178e34bad3658f',
-        imp: [
-          {
-            id: '2ffb201a808da7',
-            bidfloor: 5,
-            bidfloorcur: 'USD',
-            tagId: 'test-tag-1',
-            banner: {
-              w: 640,
-              h: 360,
-              format: [
-                { w: 640, h: 360 },
-                { w: 320, h: 320 },
-              ]
-            }
-          }
-        ],
-        site: {
-          publisher: {
-            id: '11bc5dd5-7421-4dd8-c926-40fa653bec76'
-          },
-          id: '11bc5dd5-7421-4dd8-c926-40fa653bec77',
-          ref: '',
-          page: 'http://localhost',
-          domain: 'localhost'
-        },
-        app: null,
-        device: {
-          ua:
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/61.0.3163.100 Safari/537.36',
-          language: 'en-US'
-        },
-        isPrebid: true
-      })
-    };
   });
 
   describe('Native', function() {
@@ -249,35 +181,97 @@ describe('ReadPeakAdapter', function() {
       });
 
       it('should attach request data', function() {
-        config.setConfig({
-          currency: {
-            adServerCurrency: 'EUR'
-          }
-        });
-
         const request = spec.buildRequests([nativeBidRequest], bidderRequest);
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.source.ext.prebid).to.equal('$prebid.version$');
         expect(data.id).to.equal(nativeBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(nativeBidRequest.params.bidfloor);
         expect(data.imp[0].bidfloorcur).to.equal('USD');
-        expect(data.imp[0].tagId).to.equal('test-tag-1');
+        expect(data.imp[0].tagid).to.equal('test-tag-1');
         expect(data.site.publisher.id).to.equal(nativeBidRequest.params.publisherId);
         expect(data.site.id).to.equal(nativeBidRequest.params.siteId);
-        expect(data.site.page).to.equal(bidderRequest.refererInfo.page);
-        expect(data.site.domain).to.equal(bidderRequest.refererInfo.domain);
+        expect(data.site.page).to.equal(bidderRequest.ortb2.site.page);
+        expect(data.site.domain).to.equal(bidderRequest.ortb2.site.domain);
         expect(data.device).to.deep.contain({
           ua: navigator.userAgent,
           language: navigator.language
         });
-        expect(data.cur).to.deep.equal(['EUR']);
         expect(data.user).to.be.undefined;
         expect(data.regs).to.be.undefined;
       });
 
-      it('should get bid floor from module', function() {
+      it('should send an app object instead of site when params.app is set', function() {
+        const appBidRequest = {
+          ...nativeBidRequest,
+          params: {
+            ...nativeBidRequest.params,
+            app: {
+              bundle: 'com.readpeak.app',
+              storeUrl: 'https://store.example/app',
+              domain: 'readpeak.app'
+            }
+          }
+        };
+        const request = spec.buildRequests([appBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app).to.deep.equal({
+          publisher: { id: appBidRequest.params.publisherId },
+          id: appBidRequest.params.siteId,
+          bundle: 'com.readpeak.app',
+          storeurl: 'https://store.example/app',
+          domain: 'readpeak.app'
+        });
+      });
+
+      it('should send an app object instead of site when ortb2.app is set without params.app', function() {
+        const request = spec.buildRequests([nativeBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            site: undefined,
+            app: {
+              bundle: 'com.readpeak.app',
+              storeurl: 'https://store.example/app',
+              domain: 'readpeak.app'
+            }
+          }
+        });
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app.publisher.id).to.equal(nativeBidRequest.params.publisherId);
+        expect(data.app.id).to.equal(nativeBidRequest.params.siteId);
+        expect(data.app.bundle).to.equal('com.readpeak.app');
+        expect(data.app.storeurl).to.equal('https://store.example/app');
+        expect(data.app.domain).to.equal('readpeak.app');
+      });
+
+      it('should get bid floor from module when params.bidfloor is not set', function() {
+        const floorModuleData = {
+          currency: 'USD',
+          floor: 3.2,
+        };
+        delete nativeBidRequest.params.bidfloor;
+        nativeBidRequest.getFloor = function () {
+          return floorModuleData;
+        };
+        const request = spec.buildRequests([nativeBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.source.ext.prebid).to.equal('$prebid.version$');
+        expect(data.id).to.equal(nativeBidRequest.bidderRequestId);
+        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
+        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+      });
+
+      it('should prefer floor module over params.bidfloor', function() {
         const floorModuleData = {
           currency: 'USD',
           floor: 3.2,
@@ -287,24 +281,23 @@ describe('ReadPeakAdapter', function() {
         };
         const request = spec.buildRequests([nativeBidRequest], bidderRequest);
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
-        expect(data.source.ext.prebid).to.equal('$prebid.version$');
-        expect(data.id).to.equal(nativeBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
         expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
       it('should send gdpr data when gdpr does not apply', function() {
-        const gdprData = {
-          gdprConsent: {
-            gdprApplies: false,
-            consentString: undefined,
+        const request = spec.buildRequests([nativeBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            user: { ext: { consent: '' } },
+            regs: { ext: { gdpr: 0 } }
           }
-        };
-        const request = spec.buildRequests([nativeBidRequest], { ...bidderRequest, ...gdprData });
+        });
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.user).to.deep.equal({
           ext: {
@@ -313,22 +306,23 @@ describe('ReadPeakAdapter', function() {
         });
         expect(data.regs).to.deep.equal({
           ext: {
-            gdpr: false
+            gdpr: 0
           }
         });
       });
 
       it('should send gdpr data when gdpr applies', function() {
         const tcString = 'sometcstring';
-        const gdprData = {
-          gdprConsent: {
-            gdprApplies: true,
-            consentString: tcString
+        const request = spec.buildRequests([nativeBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            user: { ext: { consent: tcString } },
+            regs: { ext: { gdpr: 1 } }
           }
-        };
-        const request = spec.buildRequests([nativeBidRequest], { ...bidderRequest, ...gdprData });
+        });
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.user).to.deep.equal({
           ext: {
@@ -337,7 +331,7 @@ describe('ReadPeakAdapter', function() {
         });
         expect(data.regs).to.deep.equal({
           ext: {
-            gdpr: true
+            gdpr: 1
           }
         });
       });
@@ -345,14 +339,16 @@ describe('ReadPeakAdapter', function() {
 
     describe('spec.interpretResponse', function() {
       it('should return no bids if the response is not valid', function() {
-        const bidResponse = spec.interpretResponse({ body: null }, nativeServerRequest);
+        const request = spec.buildRequests([nativeBidRequest], bidderRequest);
+        const bidResponse = spec.interpretResponse({ body: null }, request);
         expect(bidResponse.length).to.equal(0);
       });
 
       it('should return a valid bid response', function() {
+        const request = spec.buildRequests([nativeBidRequest], bidderRequest);
         const bidResponse = spec.interpretResponse(
           { body: nativeServerResponse },
-          nativeServerRequest
+          request
         )[0];
         expect(bidResponse).to.contain({
           requestId: nativeBidRequest.bidId,
@@ -367,19 +363,17 @@ describe('ReadPeakAdapter', function() {
         expect(bidResponse.meta).to.deep.equal({
           advertiserDomains: ['readpeak.com'],
         });
-        expect(bidResponse.native.title).to.equal('Title');
-        expect(bidResponse.native.body).to.equal('Description');
-        expect(bidResponse.native.image).to.deep.equal({
-          url: 'http://url.to/image',
-          width: 750,
-          height: 500
-        });
-        expect(bidResponse.native.clickUrl).to.equal(
-          'http://url.to/target'
-        );
-        expect(bidResponse.native.impressionTrackers).to.contain(
-          'http://url.to/pixeltracker'
-        );
+
+        if (FEATURES.NATIVE) {
+          // ortbConverter returns native in ORTB format
+          const ortbNative = bidResponse.native.ortb;
+          expect(ortbNative.assets).to.be.an('array');
+          expect(ortbNative.assets.find(a => a.title)).to.deep.include({
+            title: { text: 'Title' }
+          });
+          expect(ortbNative.link.url).to.equal('http://url.to/target');
+          expect(ortbNative.imptrackers).to.contain('http://url.to/pixeltracker');
+        }
       });
     });
   });
@@ -411,35 +405,47 @@ describe('ReadPeakAdapter', function() {
       });
 
       it('should attach request data', function() {
-        config.setConfig({
-          currency: {
-            adServerCurrency: 'EUR'
-          }
-        });
-
         const request = spec.buildRequests([bannerBidRequest], bidderRequest);
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.source.ext.prebid).to.equal('$prebid.version$');
         expect(data.id).to.equal(bannerBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(bannerBidRequest.params.bidfloor);
         expect(data.imp[0].bidfloorcur).to.equal('USD');
-        expect(data.imp[0].tagId).to.equal('test-tag-1');
+        expect(data.imp[0].tagid).to.equal('test-tag-1');
         expect(data.site.publisher.id).to.equal(bannerBidRequest.params.publisherId);
         expect(data.site.id).to.equal(bannerBidRequest.params.siteId);
-        expect(data.site.page).to.equal(bidderRequest.refererInfo.page);
-        expect(data.site.domain).to.equal(bidderRequest.refererInfo.domain);
+        expect(data.site.page).to.equal(bidderRequest.ortb2.site.page);
+        expect(data.site.domain).to.equal(bidderRequest.ortb2.site.domain);
         expect(data.device).to.deep.contain({
           ua: navigator.userAgent,
           language: navigator.language
         });
-        expect(data.cur).to.deep.equal(['EUR']);
         expect(data.user).to.be.undefined;
         expect(data.regs).to.be.undefined;
       });
 
-      it('should get bid floor from module', function() {
+      it('should get bid floor from module when params.bidfloor is not set', function() {
+        const floorModuleData = {
+          currency: 'USD',
+          floor: 3.2,
+        };
+        delete bannerBidRequest.params.bidfloor;
+        bannerBidRequest.getFloor = function () {
+          return floorModuleData;
+        };
+        const request = spec.buildRequests([bannerBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.source.ext.prebid).to.equal('$prebid.version$');
+        expect(data.id).to.equal(bannerBidRequest.bidderRequestId);
+        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
+        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+      });
+
+      it('should prefer floor module over params.bidfloor', function() {
         const floorModuleData = {
           currency: 'USD',
           floor: 3.2,
@@ -449,24 +455,23 @@ describe('ReadPeakAdapter', function() {
         };
         const request = spec.buildRequests([bannerBidRequest], bidderRequest);
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
-        expect(data.source.ext.prebid).to.equal('$prebid.version$');
-        expect(data.id).to.equal(bannerBidRequest.bidderRequestId);
         expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
         expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
       it('should send gdpr data when gdpr does not apply', function() {
-        const gdprData = {
-          gdprConsent: {
-            gdprApplies: false,
-            consentString: undefined,
+        const request = spec.buildRequests([bannerBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            user: { ext: { consent: '' } },
+            regs: { ext: { gdpr: 0 } }
           }
-        };
-        const request = spec.buildRequests([bannerBidRequest], { ...bidderRequest, ...gdprData });
+        });
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.user).to.deep.equal({
           ext: {
@@ -475,22 +480,23 @@ describe('ReadPeakAdapter', function() {
         });
         expect(data.regs).to.deep.equal({
           ext: {
-            gdpr: false
+            gdpr: 0
           }
         });
       });
 
       it('should send gdpr data when gdpr applies', function() {
         const tcString = 'sometcstring';
-        const gdprData = {
-          gdprConsent: {
-            gdprApplies: true,
-            consentString: tcString
+        const request = spec.buildRequests([bannerBidRequest], {
+          ...bidderRequest,
+          ortb2: {
+            ...bidderRequest.ortb2,
+            user: { ext: { consent: tcString } },
+            regs: { ext: { gdpr: 1 } }
           }
-        };
-        const request = spec.buildRequests([bannerBidRequest], { ...bidderRequest, ...gdprData });
+        });
 
-        const data = JSON.parse(request.data);
+        const data = request.data;
 
         expect(data.user).to.deep.equal({
           ext: {
@@ -499,7 +505,7 @@ describe('ReadPeakAdapter', function() {
         });
         expect(data.regs).to.deep.equal({
           ext: {
-            gdpr: true
+            gdpr: 1
           }
         });
       });
@@ -507,14 +513,16 @@ describe('ReadPeakAdapter', function() {
 
     describe('spec.interpretResponse', function() {
       it('should return no bids if the response is not valid', function() {
-        const bidResponse = spec.interpretResponse({ body: null }, bannerServerRequest);
+        const request = spec.buildRequests([bannerBidRequest], bidderRequest);
+        const bidResponse = spec.interpretResponse({ body: null }, request);
         expect(bidResponse.length).to.equal(0);
       });
 
       it('should return a valid bid response', function() {
+        const request = spec.buildRequests([bannerBidRequest], bidderRequest);
         const bidResponse = spec.interpretResponse(
           { body: bannerServerResponse },
-          bannerServerRequest
+          request
         )[0];
         expect(bidResponse).to.contain({
           requestId: bannerBidRequest.bidId,
@@ -524,15 +532,77 @@ describe('ReadPeakAdapter', function() {
           netRevenue: true,
           mediaType: 'banner',
           currency: bannerServerResponse.cur,
-          ad: bannerServerResponse.seatbid[0].bid[0].adm,
           width: bannerServerResponse.seatbid[0].bid[0].w,
           height: bannerServerResponse.seatbid[0].bid[0].h,
           burl: bannerServerResponse.seatbid[0].bid[0].burl,
         });
+        // ortbConverter prepends nurl tracking pixel to ad markup
+        expect(bidResponse.ad).to.contain(bannerServerResponse.seatbid[0].bid[0].adm);
         expect(bidResponse.meta).to.deep.equal({
           advertiserDomains: ['readpeak.com'],
         });
       });
     });
   });
+
+  if (FEATURES.NATIVE) {
+    describe('Multi-format', function() {
+      function mixedBidRequest() {
+        return {
+          ...nativeBidRequest,
+          mediaTypes: {
+            ...nativeBidRequest.mediaTypes,
+            banner: bannerBidRequest.mediaTypes.banner,
+          },
+          sizes: bannerBidRequest.sizes,
+        };
+      }
+
+      it('should parse banner responses as banner when the request imp also supports native', function() {
+        const bidRequest = mixedBidRequest();
+        const request = spec.buildRequests([bidRequest], bidderRequest);
+        const response = {
+          ...bannerServerResponse,
+          seatbid: [{
+            bid: [{
+              ...bannerServerResponse.seatbid[0].bid[0],
+              impid: bidRequest.bidId,
+              mtype: 1,
+            }],
+          }],
+        };
+
+        expect(request.data.imp[0].banner).to.exist;
+        expect(request.data.imp[0].native).to.exist;
+
+        const bidResponse = spec.interpretResponse({ body: response }, request)[0];
+
+        expect(bidResponse.mediaType).to.equal('banner');
+        expect(bidResponse.ad).to.contain(bannerServerResponse.seatbid[0].bid[0].adm);
+      });
+
+      it('should parse native responses as native when native adm is returned for a mixed imp', function() {
+        const bidRequest = mixedBidRequest();
+        const request = spec.buildRequests([bidRequest], bidderRequest);
+        const response = {
+          ...nativeServerResponse,
+          seatbid: [{
+            bid: [{
+              ...nativeServerResponse.seatbid[0].bid[0],
+              impid: bidRequest.bidId,
+              adm: JSON.stringify(nativeServerResponse.seatbid[0].bid[0].adm),
+              mtype: 4,
+            }],
+          }],
+        };
+
+        const bidResponse = spec.interpretResponse({ body: response }, request)[0];
+
+        expect(bidResponse.mediaType).to.equal('native');
+        expect(bidResponse.native.ortb.assets.find(a => a.title)).to.deep.include({
+          title: { text: 'Title' }
+        });
+      });
+    });
+  }
 });
