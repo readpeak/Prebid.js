@@ -591,7 +591,7 @@ describe('ReadPeakAdapter', function() {
               ...nativeServerResponse.seatbid[0].bid[0],
               impid: bidRequest.bidId,
               adm: JSON.stringify(nativeServerResponse.seatbid[0].bid[0].adm),
-              mtype: 1,
+              mtype: 4,
             }],
           }],
         };
