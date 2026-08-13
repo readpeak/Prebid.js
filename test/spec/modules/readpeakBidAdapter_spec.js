@@ -498,6 +498,68 @@ describe('ReadPeakAdapter', function() {
         expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
       });
 
+      it('should fall back to publisherId for site.id when siteId is not set', function() {
+        const siteBidRequest = {
+          ...bannerBidRequest,
+          params: {
+            ...bannerBidRequest.params,
+            siteId: undefined
+          }
+        };
+        const request = spec.buildRequests([siteBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site.publisher.id).to.equal(siteBidRequest.params.publisherId);
+        expect(data.site.id).to.equal(siteBidRequest.params.publisherId);
+      });
+
+      it('should send an app object instead of site when params.app is set', function() {
+        const appBidRequest = {
+          ...bannerBidRequest,
+          params: {
+            ...bannerBidRequest.params,
+            app: {
+              bundle: 'com.readpeak.app',
+              storeUrl: 'https://store.example/app',
+              domain: 'readpeak.app'
+            }
+          }
+        };
+        const request = spec.buildRequests([appBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app).to.deep.equal({
+          publisher: { id: appBidRequest.params.publisherId },
+          id: appBidRequest.params.siteId,
+          bundle: 'com.readpeak.app',
+          storeurl: 'https://store.example/app',
+          domain: 'readpeak.app'
+        });
+      });
+
+      it('should fall back to publisherId for app.id when siteId is not set', function() {
+        const appBidRequest = {
+          ...bannerBidRequest,
+          params: {
+            ...bannerBidRequest.params,
+            siteId: undefined,
+            app: {
+              bundle: 'com.readpeak.app'
+            }
+          }
+        };
+        const request = spec.buildRequests([appBidRequest], bidderRequest);
+
+        const data = request.data;
+
+        expect(data.site).to.be.undefined;
+        expect(data.app.publisher.id).to.equal(appBidRequest.params.publisherId);
+        expect(data.app.id).to.equal(appBidRequest.params.publisherId);
+      });
+
       it('should send gdpr data when gdpr does not apply', function() {
         const request = spec.buildRequests([bannerBidRequest], {
           ...bidderRequest,
