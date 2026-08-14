@@ -1,5 +1,6 @@
 import { expect } from 'chai';
 import { spec, ENDPOINT } from 'modules/readpeakBidAdapter.js';
+import { toOrtbNativeRequest } from 'src/native.js';
 import * as utils from 'src/utils.js';
 
 describe('ReadPeakAdapter', function() {
@@ -771,6 +772,132 @@ describe('ReadPeakAdapter', function() {
         // the fallback resolves the mediaType to native; the adm has no assets so the bid is skipped
         const bidResponses = spec.interpretResponse({ body: response }, request);
         expect(bidResponses).to.be.an('array').that.is.empty;
+      });
+    });
+  }
+
+  if (FEATURES.NATIVE) {
+    describe('Native production path (nativeOrtbRequest)', function() {
+      let prodNativeBidRequest;
+      let prodNativeOrtbRequest;
+      let prodNativeServerResponse;
+
+      beforeEach(function() {
+        // Simulate what decorateAdUnitsWithNativeParams does in production
+        const nativeParams = {
+          title: { required: true, len: 200 },
+          image: { wmin: 100 },
+          sponsoredBy: {},
+          body: { required: false },
+          cta: { required: false }
+        };
+        prodNativeOrtbRequest = toOrtbNativeRequest(nativeParams);
+
+        prodNativeBidRequest = {
+          ...baseBidRequest,
+          nativeParams,
+          nativeOrtbRequest: prodNativeOrtbRequest,
+          mediaTypes: {
+            native: {
+              title: { required: true, len: 200 },
+              image: { wmin: 100 },
+              sponsoredBy: {},
+              body: { required: false },
+              cta: { required: false }
+            },
+          }
+        };
+
+        // Response keyed off the ortbConverter-assigned IDs (0-based)
+        prodNativeServerResponse = {
+          id: baseBidRequest.bidderRequestId,
+          cur: 'USD',
+          seatbid: [
+            {
+              bid: [
+                {
+                  id: 'bid-1',
+                  impid: baseBidRequest.bidId,
+                  price: 0.12,
+                  cid: '12',
+                  crid: '123',
+                  adomain: ['readpeak.com'],
+                  mtype: 4,
+                  adm: JSON.stringify({
+                    assets: [
+                      { id: 0, title: { text: 'Title' } },
+                      { id: 1, img: { type: 3, url: 'http://url.to/image', w: 750, h: 500 } },
+                      { id: 2, data: { type: 1, value: 'Brand Name' } },
+                      { id: 3, data: { type: 2, value: 'Description' } },
+                      { id: 4, data: { type: 12, value: 'Click here' } }
+                    ],
+                    link: { url: 'http://url.to/target' },
+                    imptrackers: ['http://url.to/pixeltracker']
+                  })
+                }
+              ]
+            }
+          ]
+        };
+      });
+
+      it('should use nativeOrtbRequest from the core pipeline (fillNativeImp) instead of adapter fallback', function() {
+        const request = spec.buildRequests([prodNativeBidRequest], bidderRequest);
+        const imp = request.data.imp[0];
+
+        expect(imp.native).to.exist;
+        // fillNativeImp serializes nativeOrtbRequest into imp.native.request
+        const nativeRequest = JSON.parse(imp.native.request);
+        expect(nativeRequest.ver).to.equal('1.2');
+        expect(nativeRequest.assets).to.be.an('array').with.lengthOf(5);
+
+        // Verify 0-based IDs from toOrtbNativeRequest (not 1-based from buildNativeImp fallback)
+        expect(nativeRequest.assets[0]).to.deep.include({ id: 0, required: 1 });
+        expect(nativeRequest.assets[0].title).to.deep.equal({ len: 200 });
+
+        expect(nativeRequest.assets[1]).to.deep.include({ id: 1, required: 0 });
+        expect(nativeRequest.assets[1].img).to.deep.include({ type: 3 });
+
+        expect(nativeRequest.assets[2]).to.deep.include({ id: 2, required: 0 });
+        expect(nativeRequest.assets[2].data).to.deep.equal({ type: 1 });
+
+        expect(nativeRequest.assets[3]).to.deep.include({ id: 3, required: 0 });
+        expect(nativeRequest.assets[3].data).to.deep.equal({ type: 2 });
+
+        expect(nativeRequest.assets[4]).to.deep.include({ id: 4, required: 0 });
+        expect(nativeRequest.assets[4].data).to.deep.equal({ type: 12 });
+      });
+
+      it('should correctly interpret a native response keyed to production asset IDs', function() {
+        const request = spec.buildRequests([prodNativeBidRequest], bidderRequest);
+        const bidResponse = spec.interpretResponse(
+          { body: prodNativeServerResponse },
+          request
+        )[0];
+
+        expect(bidResponse.mediaType).to.equal('native');
+        expect(bidResponse.requestId).to.equal(baseBidRequest.bidId);
+        expect(bidResponse.cpm).to.equal(0.12);
+
+        const ortbNative = bidResponse.native.ortb;
+        expect(ortbNative.assets).to.be.an('array').with.lengthOf(5);
+        expect(ortbNative.assets[0]).to.deep.equal({ id: 0, title: { text: 'Title' } });
+        expect(ortbNative.assets[1]).to.deep.include({ id: 1 });
+        expect(ortbNative.assets[1].img).to.deep.include({ url: 'http://url.to/image' });
+        expect(ortbNative.assets[2]).to.deep.equal({ id: 2, data: { type: 1, value: 'Brand Name' } });
+        expect(ortbNative.assets[3]).to.deep.equal({ id: 3, data: { type: 2, value: 'Description' } });
+        expect(ortbNative.assets[4]).to.deep.equal({ id: 4, data: { type: 12, value: 'Click here' } });
+        expect(ortbNative.link.url).to.equal('http://url.to/target');
+        expect(ortbNative.imptrackers).to.contain('http://url.to/pixeltracker');
+      });
+
+      it('should not invoke the buildNativeImp fallback when nativeOrtbRequest is present', function() {
+        const request = spec.buildRequests([prodNativeBidRequest], bidderRequest);
+        const nativeRequest = JSON.parse(request.data.imp[0].native.request);
+
+        // The fallback buildNativeImp uses 1-based IDs; verify we get 0-based from fillNativeImp
+        const ids = nativeRequest.assets.map(a => a.id);
+        expect(ids).to.deep.equal([0, 1, 2, 3, 4]);
       });
     });
   }
