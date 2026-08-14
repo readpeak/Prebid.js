@@ -290,39 +290,27 @@ describe('ReadPeakAdapter', function() {
         expect(data.site.id).to.equal(siteBidRequest.params.publisherId);
       });
 
-      it('should get bid floor from module when params.bidfloor is not set', function() {
-        const floorModuleData = {
-          currency: 'USD',
-          floor: 3.2,
-        };
+      it('should fall back to 0 when params.bidfloor is not set and no floor processor ran', function() {
         delete nativeBidRequest.params.bidfloor;
-        nativeBidRequest.getFloor = function () {
-          return floorModuleData;
-        };
         const request = spec.buildRequests([nativeBidRequest], bidderRequest);
 
         const data = request.data;
 
-        expect(data.source.ext.prebid).to.equal('$prebid.version$');
-        expect(data.id).to.equal(nativeBidRequest.bidderRequestId);
-        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
-        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+        expect(data.imp[0].bidfloor).to.equal(0);
+        expect(data.imp[0].bidfloorcur).to.equal('USD');
       });
 
-      it('should prefer floor module over params.bidfloor', function() {
-        const floorModuleData = {
-          currency: 'USD',
-          floor: 3.2,
-        };
-        nativeBidRequest.getFloor = function () {
-          return floorModuleData;
+      it('should not overwrite floor set by processor (via ortb2Imp)', function() {
+        nativeBidRequest.ortb2Imp = {
+          bidfloor: 3.2,
+          bidfloorcur: 'USD',
         };
         const request = spec.buildRequests([nativeBidRequest], bidderRequest);
 
         const data = request.data;
 
-        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
-        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+        expect(data.imp[0].bidfloor).to.equal(3.2);
+        expect(data.imp[0].bidfloorcur).to.equal('USD');
       });
 
       it('should send gdpr data when gdpr does not apply', function() {
@@ -464,39 +452,27 @@ describe('ReadPeakAdapter', function() {
         expect(data.regs).to.be.undefined;
       });
 
-      it('should get bid floor from module when params.bidfloor is not set', function() {
-        const floorModuleData = {
-          currency: 'USD',
-          floor: 3.2,
-        };
+      it('should fall back to 0 when params.bidfloor is not set and no floor processor ran', function() {
         delete bannerBidRequest.params.bidfloor;
-        bannerBidRequest.getFloor = function () {
-          return floorModuleData;
-        };
         const request = spec.buildRequests([bannerBidRequest], bidderRequest);
 
         const data = request.data;
 
-        expect(data.source.ext.prebid).to.equal('$prebid.version$');
-        expect(data.id).to.equal(bannerBidRequest.bidderRequestId);
-        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
-        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+        expect(data.imp[0].bidfloor).to.equal(0);
+        expect(data.imp[0].bidfloorcur).to.equal('USD');
       });
 
-      it('should prefer floor module over params.bidfloor', function() {
-        const floorModuleData = {
-          currency: 'USD',
-          floor: 3.2,
-        };
-        bannerBidRequest.getFloor = function () {
-          return floorModuleData;
+      it('should not overwrite floor set by processor (via ortb2Imp)', function() {
+        bannerBidRequest.ortb2Imp = {
+          bidfloor: 3.2,
+          bidfloorcur: 'USD',
         };
         const request = spec.buildRequests([bannerBidRequest], bidderRequest);
 
         const data = request.data;
 
-        expect(data.imp[0].bidfloor).to.equal(floorModuleData.floor);
-        expect(data.imp[0].bidfloorcur).to.equal(floorModuleData.currency);
+        expect(data.imp[0].bidfloor).to.equal(3.2);
+        expect(data.imp[0].bidfloorcur).to.equal('USD');
       });
 
       it('should fall back to publisherId for site.id when siteId is not set', function() {
