@@ -1,7 +1,9 @@
-import { isStr, replaceAuctionPrice, triggerPixel, deepSetValue } from '../src/utils.js';
+import { isStr, replaceAuctionPrice, triggerPixel, deepSetValue, deepAccess } from '../src/utils.js';
 import { registerBidder } from '../src/adapters/bidderFactory.js';
 import { NATIVE, BANNER } from '../src/mediaTypes.js';
 import { ortbConverter } from '../libraries/ortbConverter/converter.js';
+import { getDeviceType as getDeviceTypeFromLib } from '../libraries/userAgentUtils/index.js';
+import { deviceTypes } from '../libraries/userAgentUtils/userAgentTypes.enums.js';
 
 export const ENDPOINT = 'https://app.readpeak.com/header/prebid';
 
@@ -9,6 +11,13 @@ const BIDDER_CODE = 'readpeak';
 const GVLID = 290;
 const ORTB_MTYPE_BANNER = 1;
 const ORTB_MTYPE_NATIVE = 4;
+
+// Map userAgentUtils device types to OpenRTB 2.x device type values
+const DEVICE_TYPE_TO_ORTB = Object.freeze({
+  [deviceTypes.DESKTOP]: 2,
+  [deviceTypes.MOBILE]: 4,
+  [deviceTypes.TABLET]: 5,
+});
 
 const converter = ortbConverter({
   context: {
@@ -88,6 +97,12 @@ const converter = ortbConverter({
       }
     }
 
+    // Ensure devicetype is always present for backend validation.
+    // Prefer value from publisher ortb2 config or RTD modules; fall back to UA detection.
+    if (!deepAccess(request, 'device.devicetype')) {
+      deepSetValue(request, 'device.devicetype', getOrtbDeviceType());
+    }
+
     return request;
   },
 
@@ -164,6 +179,14 @@ const NATIVE_DEFAULTS = {
   ICON_MIN: 50,
   CTA_LEN: 50,
 };
+
+/**
+ * Maps the userAgentUtils device type to an OpenRTB 2.x devicetype value.
+ * Falls back to desktop (2) if detection yields an unknown value.
+ */
+function getOrtbDeviceType() {
+  return DEVICE_TYPE_TO_ORTB[getDeviceTypeFromLib()] ?? 2;
+}
 
 function buildNativeImp(bidRequest) {
   const params = bidRequest.nativeParams || bidRequest.mediaTypes.native;

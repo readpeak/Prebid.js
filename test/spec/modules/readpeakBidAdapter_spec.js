@@ -901,4 +901,30 @@ describe('ReadPeakAdapter', function() {
       });
     });
   }
+
+  describe('device.devicetype fallback', function() {
+    it('should populate devicetype when not set by the publisher', function() {
+      const request = spec.buildRequests([nativeBidRequest], bidderRequest);
+      const data = request.data;
+
+      expect(data.device.devicetype).to.be.a('number');
+      expect([2, 4, 5]).to.include(data.device.devicetype);
+    });
+
+    it('should preserve publisher-provided devicetype and not overwrite it', function() {
+      const request = spec.buildRequests([nativeBidRequest], {
+        ...bidderRequest,
+        ortb2: {
+          ...bidderRequest.ortb2,
+          device: {
+            ...bidderRequest.ortb2.device,
+            devicetype: 3, // connectedtv - not a value the fallback would ever produce
+          }
+        }
+      });
+      const data = request.data;
+
+      expect(data.device.devicetype).to.equal(3);
+    });
+  });
 });
