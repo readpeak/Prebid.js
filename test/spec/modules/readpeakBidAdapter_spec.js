@@ -902,5 +902,22 @@ describe('ReadPeakAdapter', function() {
 
       expect(data.device.devicetype).to.equal(3);
     });
+
+    it('should detect Connected TV user agents as devicetype 3', function() {
+      const ctvUserAgents = [
+        'Mozilla/5.0 (Linux; Tizen 5.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/2.2 Chrome/63.0.3239.84 TV Safari/537.36',
+        'Roku/DVP-10.5 (10.5.0.0090)',
+        'Mozilla/5.0 (Linux; Android 9; SHIELD Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Mobile Safari/537.36 SmartTV',
+        'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.34 Safari/537.36 HbbTV/1.4.1',
+      ];
+
+      const originalUserAgent = navigator.userAgent;
+      ctvUserAgents.forEach(ua => {
+        Object.defineProperty(navigator, 'userAgent', { value: ua, configurable: true });
+        const request = spec.buildRequests([nativeBidRequest], bidderRequest);
+        expect(request.data.device.devicetype).to.equal(3, `Expected CTV (3) for UA: ${ua}`);
+      });
+      Object.defineProperty(navigator, 'userAgent', { value: originalUserAgent, configurable: true });
+    });
   });
 });

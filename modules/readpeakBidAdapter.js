@@ -175,10 +175,15 @@ const NATIVE_DEFAULTS = {
 };
 
 /**
- * Maps the userAgentUtils device type to an OpenRTB 2.x devicetype value.
+ * Maps the user agent to an OpenRTB 2.x devicetype value.
+ * Checks for Connected TV first (the shared library has no CTV branch),
+ * then delegates phone/tablet/desktop detection to userAgentUtils.
  * Falls back to desktop (2) if detection yields an unknown value.
  */
 function getOrtbDeviceType() {
+  if (/(smart[-]?tv|hbbtv|appletv|googletv|hdmi|netcast\.tv|viera|nettv|roku|\bdtv\b|sonydtv|inettvbrowser|\btv\b)/i.test(navigator.userAgent)) {
+    return 3; // ConnectedTV
+  }
   return DEVICE_TYPE_TO_ORTB[getDeviceTypeFromLib()] ?? 2;
 }
 
