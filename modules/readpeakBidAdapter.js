@@ -149,7 +149,7 @@ function getBidMediaType(bid, context) {
   if (context.imp && context.imp.native && !context.imp.banner) {
     return NATIVE;
   }
-  return BANNER;
+  return undefined;
 }
 
 function isNativeAdm(adm) {

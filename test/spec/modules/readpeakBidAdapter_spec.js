@@ -138,6 +138,7 @@ describe('ReadPeakAdapter', function() {
               price: 0.12,
               cid: '12',
               crid: '123',
+              mtype: 1,
               adomain: ['readpeak.com'],
               adm: '<iframe src=\"http://localhost:8081/url/creative?id=4326&l=f707685dfbbcdbe3&bad=0-0-95O0O0OdO640360&b=e4d39f94-533d-4577-a579-585fd4c02b0a&w=640&h=360&gc=0\" style=\"border: 0; display: block\" width=640 height=360></iframe>',
               burl: 'https://localhost:8081/url/b?d=0O95O4326I528Ie4d39f94-533d-4577-a579-585fd4c02b0aI0I352e303232363639333139393939393939&c=USD&p=${AUCTION_PRICE}&bad=0-0-95O0O0OdO640360&gc=0',
