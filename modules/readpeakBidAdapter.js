@@ -36,7 +36,7 @@ const converter = ortbConverter({
       imp.bidfloorcur = bidRequest.params.bidfloorcur || 'USD';
     }
 
-    imp.tagid = bidRequest.params.tagId || '0';
+    imp.tagid = bidRequest.params.tagId || imp.tagid || bidRequest.adUnitCode || '0';
 
     // Ensure native imp is populated when nativeOrtbRequest isn't available
     if (bidRequest.mediaTypes && bidRequest.mediaTypes.native && !imp.native) {
