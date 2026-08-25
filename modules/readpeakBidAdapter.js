@@ -140,11 +140,16 @@ export const spec = {
 registerBidder(spec);
 
 function getBidMediaType(bid, context) {
-  if (isNativeAdm(bid.adm) || bid.mtype === ORTB_MTYPE_NATIVE) {
+  // Prefer the explicit mtype signal from the endpoint
+  if (bid.mtype === ORTB_MTYPE_NATIVE) {
     return NATIVE;
   }
   if (bid.mtype === ORTB_MTYPE_BANNER) {
     return BANNER;
+  }
+  // Fallback: sniff adm when mtype is absent
+  if (isNativeAdm(bid.adm)) {
+    return NATIVE;
   }
   if (context.imp && context.imp.native && !context.imp.banner) {
     return NATIVE;
