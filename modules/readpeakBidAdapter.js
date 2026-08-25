@@ -38,11 +38,6 @@ const converter = ortbConverter({
 
     imp.tagid = bidRequest.params.tagId || imp.tagid || bidRequest.adUnitCode || '0';
 
-    // Ensure native imp is populated when nativeOrtbRequest isn't available
-    if (bidRequest.mediaTypes && bidRequest.mediaTypes.native && !imp.native) {
-      imp.native = buildNativeImp(bidRequest);
-    }
-
     return imp;
   },
 
@@ -170,15 +165,6 @@ function isNativeAdm(adm) {
   return false;
 }
 
-const NATIVE_DEFAULTS = {
-  TITLE_LEN: 70,
-  DESCR_LEN: 120,
-  SPONSORED_BY_LEN: 50,
-  IMG_MIN: 150,
-  ICON_MIN: 50,
-  CTA_LEN: 50,
-};
-
 /**
  * Maps the user agent to an OpenRTB 2.x devicetype value.
  * Checks for Connected TV first (the shared library has no CTV branch),
@@ -190,54 +176,4 @@ function getOrtbDeviceType() {
     return 3; // ConnectedTV
   }
   return DEVICE_TYPE_TO_ORTB[getDeviceTypeFromLib()] ?? 2;
-}
-
-function buildNativeImp(bidRequest) {
-  const params = bidRequest.nativeParams || bidRequest.mediaTypes.native;
-  if (!params) return undefined;
-
-  const assets = [];
-  if (params.title) {
-    assets.push({
-      id: 1,
-      required: params.title.required ? 1 : 0,
-      title: { len: params.title.len || NATIVE_DEFAULTS.TITLE_LEN },
-    });
-  }
-  if (params.image) {
-    assets.push({
-      id: 2,
-      required: params.image.required ? 1 : 0,
-      img: {
-        type: 3,
-        wmin: params.image.wmin || NATIVE_DEFAULTS.IMG_MIN,
-        hmin: params.image.hmin || NATIVE_DEFAULTS.IMG_MIN,
-      },
-    });
-  }
-  if (params.sponsoredBy) {
-    assets.push({
-      id: 3,
-      required: params.sponsoredBy.required ? 1 : 0,
-      data: { type: 1, len: params.sponsoredBy.len || NATIVE_DEFAULTS.SPONSORED_BY_LEN },
-    });
-  }
-  if (params.body) {
-    assets.push({
-      id: 4,
-      required: params.body.required ? 1 : 0,
-      data: { type: 2, len: params.body.len || NATIVE_DEFAULTS.DESCR_LEN },
-    });
-  }
-  if (params.cta) {
-    assets.push({
-      id: 5,
-      required: params.cta.required ? 1 : 0,
-      data: { type: 12, len: params.cta.len || NATIVE_DEFAULTS.CTA_LEN },
-    });
-  }
-  return {
-    request: JSON.stringify({ assets }),
-    ver: '1.1',
-  };
 }

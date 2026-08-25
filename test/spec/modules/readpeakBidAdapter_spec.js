@@ -43,24 +43,19 @@ describe('ReadPeakAdapter', function() {
       transactionId: 'd45dd707-a418-42ec-b8a7-b70a6c6fab0b',
     };
 
+    const nativeParams = {
+      title: { required: true, len: 200 },
+      image: { wmin: 100 },
+      sponsoredBy: {},
+      body: { required: false },
+      cta: { required: false }
+    };
+
     nativeBidRequest = {
       ...baseBidRequest,
-      nativeParams: {
-        title: { required: true, len: 200 },
-        image: { wmin: 100 },
-        sponsoredBy: {},
-        body: { required: false },
-        cta: { required: false }
-      },
-      mediaTypes: {
-        native: {
-          title: { required: true, len: 200 },
-          image: { wmin: 100 },
-          sponsoredBy: {},
-          body: { required: false },
-          cta: { required: false }
-        },
-      }
+      nativeParams,
+      nativeOrtbRequest: toOrtbNativeRequest(nativeParams),
+      mediaTypes: { native: nativeParams },
     };
     bannerBidRequest = {
       ...baseBidRequest,
@@ -828,7 +823,7 @@ describe('ReadPeakAdapter', function() {
         expect(nativeRequest.ver).to.equal('1.2');
         expect(nativeRequest.assets).to.be.an('array').with.lengthOf(5);
 
-        // Verify 0-based IDs from toOrtbNativeRequest (not 1-based from buildNativeImp fallback)
+        // Verify 0-based IDs from toOrtbNativeRequest
         expect(nativeRequest.assets[0]).to.deep.include({ id: 0, required: 1 });
         expect(nativeRequest.assets[0].title).to.deep.equal({ len: 200 });
 
@@ -868,11 +863,11 @@ describe('ReadPeakAdapter', function() {
         expect(ortbNative.imptrackers).to.contain('http://url.to/pixeltracker');
       });
 
-      it('should not invoke the buildNativeImp fallback when nativeOrtbRequest is present', function() {
+      it('should use 0-based asset IDs from core fillNativeImp', function() {
         const request = spec.buildRequests([prodNativeBidRequest], bidderRequest);
         const nativeRequest = JSON.parse(request.data.imp[0].native.request);
 
-        // The fallback buildNativeImp uses 1-based IDs; verify we get 0-based from fillNativeImp
+        // Core toOrtbNativeRequest assigns 0-based IDs
         const ids = nativeRequest.assets.map(a => a.id);
         expect(ids).to.deep.equal([0, 1, 2, 3, 4]);
       });
