@@ -35,6 +35,7 @@ const converter = ortbConverter({
       imp.bidfloor = bidRequest.params.bidfloor ?? 0;
       imp.bidfloorcur = bidRequest.params.bidfloorcur || 'USD';
     }
+    imp.bidfloorcur = imp.bidfloorcur || 'USD';
 
     imp.tagid = bidRequest.params.tagId || imp.tagid || bidRequest.adUnitCode || '0';
 
@@ -44,14 +45,11 @@ const converter = ortbConverter({
   request(buildRequest, imps, bidderRequest, context) {
     const request = buildRequest(imps, bidderRequest, context);
 
-    const bidRequests = context.bidRequests;
-    if (bidRequests && bidRequests.length > 0) {
-      request.id = bidRequests[0].bidderRequestId;
-    }
+    request.id = bidderRequest.bidderRequestId;
 
     deepSetValue(request, 'source.ext.prebid', '$prebid.version$');
 
-    const firstBid = bidRequests && bidRequests[0];
+    const firstBid = context.bidRequests && context.bidRequests[0];
     if (firstBid && firstBid.params) {
       const appParams = firstBid.params.app;
       if (request.app || appParams) {
