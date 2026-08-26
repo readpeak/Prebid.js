@@ -13,6 +13,7 @@ describe('ReadPeakAdapter', function() {
 
   beforeEach(function() {
     bidderRequest = {
+      bidderRequestId: '178e34bad3658f',
       refererInfo: {
         page: 'https://publisher.com/home',
         domain: 'publisher.com'
