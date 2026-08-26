@@ -1,6 +1,7 @@
 import { isStr, replaceAuctionPrice, triggerPixel, deepSetValue, deepAccess } from '../src/utils.js';
 import { registerBidder } from '../src/adapters/bidderFactory.js';
 import { NATIVE, BANNER } from '../src/mediaTypes.js';
+import { config } from '../src/config.js';
 import { ortbConverter } from '../libraries/ortbConverter/converter.js';
 import { getDeviceType as getDeviceTypeFromLib } from '../libraries/userAgentUtils/index.js';
 import { deviceTypes } from '../libraries/userAgentUtils/userAgentTypes.enums.js';
@@ -88,6 +89,10 @@ const converter = ortbConverter({
     // Prefer value from publisher ortb2 config or RTD modules; fall back to UA detection.
     if (!deepAccess(request, 'device.devicetype')) {
       deepSetValue(request, 'device.devicetype', getOrtbDeviceType());
+    }
+
+    if (!request.cur) {
+      request.cur = [config.getConfig('currency')?.adServerCurrency || 'USD'];
     }
 
     return request;
