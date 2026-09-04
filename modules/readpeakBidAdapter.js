@@ -20,6 +20,8 @@ const DEVICE_TYPE_TO_ORTB = Object.freeze({
   [deviceTypes.TABLET]: 5,
 });
 
+const DEFAULT_CURRENCY = 'USD';
+
 const converter = ortbConverter({
   context: {
     netRevenue: true,
@@ -34,9 +36,9 @@ const converter = ortbConverter({
     // Only fill from params when the floors module didn't provide a value.
     if (imp.bidfloor == null) {
       imp.bidfloor = bidRequest.params.bidfloor ?? 0;
-      imp.bidfloorcur = bidRequest.params.bidfloorcur || 'USD';
+      imp.bidfloorcur = bidRequest.params.bidfloorcur || DEFAULT_CURRENCY;
     }
-    imp.bidfloorcur = imp.bidfloorcur || 'USD';
+    imp.bidfloorcur = imp.bidfloorcur || DEFAULT_CURRENCY;
 
     imp.tagid = bidRequest.params.tagId || imp.tagid || bidRequest.adUnitCode || '0';
 
@@ -94,7 +96,7 @@ const converter = ortbConverter({
     }
 
     if (!request.cur) {
-      request.cur = [config.getConfig('currency')?.adServerCurrency || 'USD'];
+      request.cur = [config.getConfig('currency')?.adServerCurrency || DEFAULT_CURRENCY];
     }
 
     return request;
