@@ -48,10 +48,6 @@ const converter = ortbConverter({
   request(buildRequest, imps, bidderRequest, context) {
     const request = buildRequest(imps, bidderRequest, context);
 
-    if (!request.id) {
-      request.id = bidderRequest.bidderRequestId;
-    }
-
     deepSetValue(request, 'source.ext.prebid', '$prebid.version$');
 
     const firstBid = context.bidRequests && context.bidRequests[0];
